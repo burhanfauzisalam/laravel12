@@ -1,61 +1,54 @@
-FROM node:22-alpine AS node_builder
+FROM php:8.3-apache
 
+# Set server name untuk menghindari warning Apache
+RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
+
+# Install dependencies sistem dan ekstensi PHP
+RUN apt-get update && apt-get install -y \
+    unzip zip git curl libzip-dev libpng-dev libonig-dev libxml2-dev \
+    libjpeg-dev libfreetype6-dev \
+    && docker-php-ext-configure gd --with-jpeg --with-freetype \
+    && docker-php-ext-install gd zip pdo pdo_mysql \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Aktifkan Apache mod_rewrite (untuk routing Laravel)
+RUN a2enmod rewrite
+
+# Set working directory Laravel
 WORKDIR /var/www/html
 
-COPY package.json package-lock.json* vite.config.js ./
-COPY resources ./resources
-
-RUN npm install && npm run build
-
-FROM php:8.2-fpm-alpine AS app
-
-RUN apk add --no-cache \
-    nginx \
-    supervisor \
-    bash \
-    git \
-    curl \
-    libpng-dev \
-    libjpeg-turbo-dev \
-    libwebp-dev \
-    freetype-dev \
-    oniguruma-dev \
-    libxml2-dev \
-    zip \
-    unzip \
-    icu-dev
-
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp && \
-    docker-php-ext-install pdo_mysql mbstring bcmath exif pcntl gd intl
-
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-WORKDIR /var/www/html
-
-COPY composer.json composer.lock ./
-
-RUN composer install \
-    --no-dev \
-    --no-interaction \
-    --prefer-dist \
-    --optimize-autoloader \
-    --no-scripts
-
+# Salin semua file Laravel ke dalam container
 COPY . .
 
-COPY --from=node_builder /var/www/html/public/build ./public/build
+# Pastikan bootstrap/cache & storage writable
+RUN mkdir -p /var/www/html/bootstrap/cache \
+    && mkdir -p /var/www/html/storage \
+    && chmod -R 777 /var/www/html/bootstrap/cache /var/www/html/storage
 
-RUN mkdir -p storage/logs \
-    storage/framework/cache \
-    storage/framework/sessions \
-    storage/framework/views \
-    /run/nginx && \
-    chown -R www-data:www-data storage bootstrap/cache
+# Pastikan .env tersedia saat build (supaya artisan tidak error)
+RUN cp .env.example .env || true
 
-COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
-COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
-COPY docker/supervisord.conf /etc/supervisord.conf
+# Install Composer
+RUN curl -sS https://getcomposer.org/installer | php && \
+    mv composer.phar /usr/local/bin/composer
 
+# Jalankan Composer install + semua script artisan otomatis
+RUN composer install --no-dev --optimize-autoloader --no-scripts
+
+# Jalankan artisan command tambahan saat build
+RUN php artisan key:generate \
+    && php artisan config:clear \
+    && php artisan route:clear \
+    && php artisan view:clear \
+    && php artisan cache:clear \
+    && php artisan migrate --force || true
+
+
+# Install Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install \
+    && npm run build
+
+# Expose port 80
 EXPOSE 80
-
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
