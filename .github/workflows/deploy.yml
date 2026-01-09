@@ -1,0 +1,43 @@
+name: CD
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    needs: []
+
+    steps:
+      - name: Deploy to Ubuntu server over SSH
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          APP_PATH: ${{ secrets.APP_PATH }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${SSH_PRIVATE_KEY}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          if [ -n "$SSH_PORT" ]; then
+            PORT_ARG="-p $SSH_PORT"
+          else
+            PORT_ARG=""
+          fi
+
+          ssh-keyscan $SSH_HOST >> ~/.ssh/known_hosts
+
+          ssh $PORT_ARG "$SSH_USER@$SSH_HOST" << 'EOF'
+            set -e
+            cd "$APP_PATH"
+            git fetch origin
+            git reset --hard origin/main
+            cp .env.production .env || true
+            docker compose pull || true
+            docker compose up -d --build
+            docker image prune -f
+          EOF
+

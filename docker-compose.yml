@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: laravel12
+    restart: always
+    env_file:
+      - .env.production
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+    volumes:
+      - storage:/var/www/html/storage
+    networks:
+      - web
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.laravel12.rule=Host(`apps.burhanfs.my.id`) && PathPrefix(`/laravel12`)"
+      - "traefik.http.routers.laravel12.entrypoints=websecure"
+      - "traefik.http.routers.laravel12.tls.certresolver=myresolver"
+      - "traefik.http.routers.laravel12.priority=100"
+      - "traefik.http.middlewares.laravel12-strip.stripprefix.prefixes=/laravel12"
+      - "traefik.http.middlewares.laravel12-proxy.headers.customrequestheaders.X-Forwarded-Prefix=/laravel12"
+      - "traefik.http.middlewares.laravel12-proxy.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.middlewares.laravel12-proxy.headers.customrequestheaders.X-Forwarded-Host=apps.burhanfs.my.id"
+      - "traefik.http.routers.laravel12.middlewares=laravel12-strip,laravel12-proxy"
+      - "traefik.http.services.laravel12.loadbalancer.server.port=80"
+
+volumes:
+  storage:
+
+networks:
+  web:
+    external: true

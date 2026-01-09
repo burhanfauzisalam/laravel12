@@ -1,0 +1,17 @@
+vendor
+node_modules
+storage/logs
+storage/framework/cache
+storage/framework/sessions
+storage/framework/views
+storage/debugbar
+.git
+.gitignore
+.env
+.env.*
+docker-compose.override.yml
+docker
+tests
+phpunit.xml
+README.md
+
