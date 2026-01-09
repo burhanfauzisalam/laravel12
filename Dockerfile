@@ -45,8 +45,12 @@ COPY . .
 
 COPY --from=node_builder /var/www/html/public/build ./public/build
 
-RUN chown -R www-data:www-data storage bootstrap/cache && \
-    mkdir -p /run/nginx
+RUN mkdir -p storage/logs \
+    storage/framework/cache \
+    storage/framework/sessions \
+    storage/framework/views \
+    /run/nginx && \
+    chown -R www-data:www-data storage bootstrap/cache
 
 COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY docker/nginx/default.conf /etc/nginx/conf.d/default.conf
@@ -55,4 +59,3 @@ COPY docker/supervisord.conf /etc/supervisord.conf
 EXPOSE 80
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
-
