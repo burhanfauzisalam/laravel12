@@ -19,7 +19,6 @@ jobs:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_PORT: ${{ secrets.SSH_PORT }}
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          APP_PATH: ${{ secrets.APP_PATH }}
         run: |
           set -x
           mkdir -p ~/.ssh
@@ -36,19 +35,20 @@ jobs:
           # supaya error utama terlihat di langkah ssh berikutnya
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
 
+          REMOTE_DIR="~/Apps/laravel12"
+
           # Sinkronkan kode dari runner ke server (tanpa perlu git pull di server)
           RSYNC_SSH_OPTS="-i ~/.ssh/id_rsa"
           if [ -n "$SSH_PORT" ]; then
             RSYNC_SSH_OPTS="$RSYNC_SSH_OPTS -p $SSH_PORT"
           fi
 
-          rsync -az --delete -e "ssh $RSYNC_SSH_OPTS" ./ "$SSH_USER@$SSH_HOST:$APP_PATH"
+          rsync -az --delete -e "ssh $RSYNC_SSH_OPTS" ./ "$SSH_USER@$SSH_HOST:$REMOTE_DIR"
 
           ssh -vvv $PORT_ARG "$SSH_USER@$SSH_HOST" << 'EOF'
             set -e
-            cd "$APP_PATH"
+            cd ~/Apps/laravel12
             ls
-            cp .env.production .env || true
             docker compose up -d --build
             docker image prune -f
           EOF
