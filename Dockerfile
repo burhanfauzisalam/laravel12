@@ -39,7 +39,7 @@ RUN cp .env.production.example .env.production \
 FROM composer:2 AS composer_build
 WORKDIR /app
 COPY composer.json composer.lock ./
-RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-scripts
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-scripts --ignore-platform-req=php
 
 # Final application image
 FROM base AS app
@@ -61,10 +61,12 @@ COPY --from=composer_build /app/vendor ./vendor
 RUN if [ -f .env.production.example ]; then cp .env.production.example .env; elif [ -f .env.example ]; then cp .env.example .env; fi \
  && php artisan key:generate --force
 
-# Laravel storage/cache permissions
-RUN chown -R www-data:www-data storage bootstrap/cache \
+# Laravel storage/cache directories & permissions
+RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs \
+ && chown -R www-data:www-data storage bootstrap/cache \
  && find storage bootstrap/cache -type d -exec chmod 775 {} \; \
  && find storage bootstrap/cache -type f -exec chmod 664 {} \;
 
 # Jalankan inisialisasi minimal saat container start, lalu start Apache
-CMD ["sh", "-c", "php artisan migrate --force --no-interaction || true; php artisan config:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache && apache2-foreground"]
+# Hanya cache config & routes; view dibiarkan seperti di lokal
+CMD ["sh", "-c", "php artisan migrate --force --no-interaction || true; php artisan config:clear && php artisan config:cache && php artisan route:cache || true; apache2-foreground"]
