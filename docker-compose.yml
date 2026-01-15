@@ -27,7 +27,7 @@ services:
       - "traefik.enable=true"
 
       # ROUTER (WAJIB PathPrefix)
-      - "traefik.http.routers.laravel12.rule=Host(`apps.burhanfs.my.id`) && PathPrefix(`/laravel12`)"
+      - "traefik.http.routers.laravel12.rule=Host(`server.burhanfs.my.id`) && PathPrefix(`/laravel12`)"
       - "traefik.http.routers.laravel12.entrypoints=websecure"
       - "traefik.http.routers.laravel12.tls.certresolver=myresolver"
       - "traefik.http.routers.laravel12.priority=100"
@@ -37,7 +37,7 @@ services:
 
       - "traefik.http.middlewares.laravel12-proxy.headers.customrequestheaders.X-Forwarded-Prefix=/laravel12"
       - "traefik.http.middlewares.laravel12-proxy.headers.customrequestheaders.X-Forwarded-Proto=https"
-      - "traefik.http.middlewares.laravel12-proxy.headers.customrequestheaders.X-Forwarded-Host=apps.burhanfs.my.id"
+      - "traefik.http.middlewares.laravel12-proxy.headers.customrequestheaders.X-Forwarded-Host=server.burhanfs.my.id"
 
       - "traefik.http.routers.laravel12.middlewares=laravel12-strip,laravel12-proxy"
 
