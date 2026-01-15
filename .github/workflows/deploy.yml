@@ -43,7 +43,8 @@ jobs:
             RSYNC_SSH_OPTS="$RSYNC_SSH_OPTS -p $SSH_PORT"
           fi
 
-          rsync -az --delete -e "ssh $RSYNC_SSH_OPTS" ./ "$SSH_USER@$SSH_HOST:$REMOTE_DIR"
+          # Sinkronkan kode, tapi jangan sentuh file .env di server
+          rsync -az --delete --exclude='.env' -e "ssh $RSYNC_SSH_OPTS" ./ "$SSH_USER@$SSH_HOST:$REMOTE_DIR"
 
           ssh -vvv $PORT_ARG "$SSH_USER@$SSH_HOST" << 'EOF'
             set -e
