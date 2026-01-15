@@ -18,6 +18,7 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           APP_PATH: ${{ secrets.APP_PATH }}
         run: |
+          set -x
           mkdir -p ~/.ssh
           echo "${SSH_PRIVATE_KEY}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
@@ -28,11 +29,14 @@ jobs:
             PORT_ARG=""
           fi
 
-          ssh-keyscan $SSH_HOST >> ~/.ssh/known_hosts
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
 
-          ssh $PORT_ARG "$SSH_USER@$SSH_HOST" << 'EOF'
+          ssh -vvv $PORT_ARG "$SSH_USER@$SSH_HOST" << 'EOF'
             set -e
             cd "$APP_PATH"
+            pwd
+            ls
+            git remote -v
             git fetch origin
             git reset --hard origin/main
             cp .env.production .env || true
@@ -40,4 +44,3 @@ jobs:
             docker compose up -d --build
             docker image prune -f
           EOF
-
