@@ -35,7 +35,16 @@ jobs:
 
           ssh -vvv $PORT_ARG "$SSH_USER@$SSH_HOST" << 'EOF'
             set -e
+
             cd "$APP_PATH"
+            echo "PWD after first cd: \$(pwd)"
+
+            # Kalau belum di root repo, tapi ada folder laravel12 di bawahnya, masuk ke situ
+            if [ ! -d .git ] && [ -d laravel12 ]; then
+              cd laravel12
+              echo "Moved into laravel12 directory. PWD: \$(pwd)"
+            fi
+
             pwd
             ls
             git remote -v
