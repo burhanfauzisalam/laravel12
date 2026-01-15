@@ -10,6 +10,9 @@ jobs:
     needs: []
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
       - name: Deploy to Ubuntu server over SSH
         env:
           SSH_HOST: ${{ secrets.SSH_HOST }}
@@ -33,34 +36,19 @@ jobs:
           # supaya error utama terlihat di langkah ssh berikutnya
           ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
 
+          # Sinkronkan kode dari runner ke server (tanpa perlu git pull di server)
+          RSYNC_SSH_OPTS="-i ~/.ssh/id_rsa"
+          if [ -n "$SSH_PORT" ]; then
+            RSYNC_SSH_OPTS="$RSYNC_SSH_OPTS -p $SSH_PORT"
+          fi
+
+          rsync -az --delete -e "ssh $RSYNC_SSH_OPTS" ./ "$SSH_USER@$SSH_HOST:$APP_PATH"
+
           ssh -vvv $PORT_ARG "$SSH_USER@$SSH_HOST" << 'EOF'
             set -e
-
             cd "$APP_PATH"
-            echo "PWD after first cd: $(pwd)"
-            echo "Listing after first cd:"
             ls
-
-            # Kalau belum di root repo, coba cari repo laravel12 di dalamnya
-            if [ ! -d .git ]; then
-              if [ -d laravel12/.git ]; then
-                cd laravel12
-                echo "Moved into ./laravel12. PWD: $(pwd)"
-              elif [ -d Apps/laravel12/.git ]; then
-                cd Apps/laravel12
-                echo "Moved into ./Apps/laravel12. PWD: $(pwd)"
-              fi
-            fi
-
-            echo "Final PWD: $(pwd)"
-            echo "Final listing:"
-            ls
-
-            git remote -v
-            git fetch origin
-            git reset --hard origin/main
             cp .env.production .env || true
-            docker compose pull || true
             docker compose up -d --build
             docker image prune -f
           EOF
