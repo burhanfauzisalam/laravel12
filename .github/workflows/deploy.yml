@@ -29,7 +29,9 @@ jobs:
             PORT_ARG=""
           fi
 
-          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          # Tambah host ke known_hosts; jangan gagal walau ssh-keyscan error,
+          # supaya error utama terlihat di langkah ssh berikutnya
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
 
           ssh -vvv $PORT_ARG "$SSH_USER@$SSH_HOST" << 'EOF'
             set -e
