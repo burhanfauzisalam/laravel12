@@ -37,16 +37,25 @@ jobs:
             set -e
 
             cd "$APP_PATH"
-            echo "PWD after first cd: \$(pwd)"
+            echo "PWD after first cd: $(pwd)"
+            echo "Listing after first cd:"
+            ls
 
-            # Kalau belum di root repo, tapi ada folder laravel12 di bawahnya, masuk ke situ
-            if [ ! -d .git ] && [ -d laravel12 ]; then
-              cd laravel12
-              echo "Moved into laravel12 directory. PWD: \$(pwd)"
+            # Kalau belum di root repo, coba cari repo laravel12 di dalamnya
+            if [ ! -d .git ]; then
+              if [ -d laravel12/.git ]; then
+                cd laravel12
+                echo "Moved into ./laravel12. PWD: $(pwd)"
+              elif [ -d Apps/laravel12/.git ]; then
+                cd Apps/laravel12
+                echo "Moved into ./Apps/laravel12. PWD: $(pwd)"
+              fi
             fi
 
-            pwd
+            echo "Final PWD: $(pwd)"
+            echo "Final listing:"
             ls
+
             git remote -v
             git fetch origin
             git reset --hard origin/main
