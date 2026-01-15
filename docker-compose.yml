@@ -7,6 +7,9 @@ services:
     container_name: laravel12
     restart: always
 
+    env_file:
+      - .env
+
     environment:
       APP_ENV: production
       APP_DEBUG: true
