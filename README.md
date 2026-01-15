@@ -1,61 +1,65 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+## Deploy ke Server (Docker + Traefik)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Panduan singkat untuk deploy pertama kali ke server (mis. Ubuntu + Docker + Traefik).
 
-## About Laravel
+### 1. Persiapan di server
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- Install Docker dan Docker Compose plugin.
+- Pastikan user (mis. `ubuntu`) bisa menjalankan Docker (opsional tanpa `sudo`):
+  - `sudo usermod -aG docker ubuntu` lalu logout/login, atau lanjut gunakan `sudo` seperti di workflow.
+- Buat network Traefik yang dipakai `docker-compose.yml`:
+  - `sudo docker network create web` (abaikan error jika sudah ada).
+- Siapkan folder aplikasi:
+  - `mkdir -p ~/Apps/laravel12`
+  - `cd ~/Apps/laravel12`
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### 2. Buat file `.env` di server
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- Ambil contoh dari `.env.production.example` di repo ini, lalu isi sesuai environment production:
+  - `APP_ENV=production`
+  - `APP_URL` / `ASSET_URL` arahkan ke `https://server.burhanfs.my.id/laravel12`
+  - Konfigurasi database:
+    - `DB_CONNECTION=mysql`
+    - `DB_HOST` = host/IP MySQL (boleh di luar Docker).
+    - `DB_PORT` = port MySQL.
+    - `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD` sesuai server DB.
+- Simpan sebagai `~/Apps/laravel12/.env`.
+- Catatan:
+  - Workflow deploy **tidak akan menghapus atau menimpa** file `.env` di server (rsync memakai `--exclude='.env'`).
 
-## Learning Laravel
+### 3. Deploy manual pertama kali
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+Di server:
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+```bash
+cd ~/Apps/laravel12
+git clone https://github.com/burhanfauzisalam/laravel12.git .   # jika belum ada isi repo
+sudo docker compose up -d --build
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Jika tidak ada error di log container `laravel12`, aplikasi dapat diakses melalui Traefik di `https://server.burhanfs.my.id/laravel12`.
 
-## Laravel Sponsors
+### 4. Setup CI/CD (GitHub Actions)
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Repository ini sudah menyertakan:
 
-### Premium Partners
+- `./.github/workflows/ci.yml` – menjalankan test dan build front-end pada setiap push/pull request.
+- `./.github/workflows/deploy.yml` – auto-deploy ke server pada setiap push ke branch `main`.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+Langkah konfigurasi:
 
-## Contributing
+1. Di GitHub repo ini buka: `Settings` → `Secrets and variables` → `Actions`.
+2. Tambahkan **Repository secrets** berikut:
+   - `SSH_HOST` = host/IP server (mis. `ec2-...ap-southeast-1.compute.amazonaws.com`).
+   - `SSH_USER` = user SSH (mis. `ubuntu`).
+   - `SSH_PORT` = port SSH (`22` jika default).
+   - `SSH_PRIVATE_KEY` = isi private key yang dipakai untuk SSH ke server (mulai `-----BEGIN` sampai `END PRIVATE KEY-----`).
+3. Pastikan folder `~/Apps/laravel12` di server sudah ada dan berisi file `.env` seperti langkah di atas.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Setelah itu, setiap kali push ke branch `main`:
 
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+- GitHub Actions akan menjalankan CI (`ci.yml`).
+- Workflow deploy akan:
+  - Menyalin kode terbaru ke `~/Apps/laravel12` via `rsync` (tanpa menghapus `.env`).
+  - Menjalankan `sudo docker compose up -d --build` di server.
+  - Membersihkan image lama dengan `sudo docker image prune -f`.
