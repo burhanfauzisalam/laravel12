@@ -9,9 +9,16 @@ services:
 
     environment:
       APP_ENV: production
-      APP_DEBUG: true
+      APP_DEBUG: false
       APP_URL: https://apps.burhanfs.my.id/laravel12
       ASSET_URL: https://apps.burhanfs.my.id/laravel12
+      # MySQL database configuration (sesuaikan dengan server kamu)
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: laravel
+      DB_USERNAME: laravel
+      DB_PASSWORD: secret
 
     networks:
       - web
@@ -37,10 +44,12 @@ services:
       # SERVICE
       - "traefik.http.services.laravel12.loadbalancer.server.port=80"
 
-
-    volumes:
-      - ./:/var/www/html
-      - ./apache.conf:/etc/apache2/sites-enabled/000-default.conf
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
     working_dir: /var/www/html
 

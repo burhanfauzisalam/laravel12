@@ -1,54 +1,70 @@
-FROM php:8.3-apache
+FROM php:8.3-apache AS base
 
-# Set server name untuk menghindari warning Apache
-RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
-
-# Install dependencies sistem dan ekstensi PHP
+# System dependencies and PHP extensions
 RUN apt-get update && apt-get install -y \
-    unzip zip git curl libzip-dev libpng-dev libonig-dev libxml2-dev \
-    libjpeg-dev libfreetype6-dev \
-    && docker-php-ext-configure gd --with-jpeg --with-freetype \
-    && docker-php-ext-install gd zip pdo pdo_mysql \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    git unzip zip curl \
+    libzip-dev \
+    libpng-dev libjpeg62-turbo-dev libfreetype6-dev libwebp-dev \
+    libonig-dev libxml2-dev \
+    libicu-dev \
+ && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+ && docker-php-ext-install pdo pdo_mysql mysqli zip gd mbstring intl \
+ && rm -rf /var/lib/apt/lists/*
 
-# Aktifkan Apache mod_rewrite (untuk routing Laravel)
-RUN a2enmod rewrite
+# Apache configuration
+ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
+  /etc/apache2/sites-available/000-default.conf \
+  /etc/apache2/apache2.conf \
+ && a2enmod rewrite \
+ && sed -i 's|AllowOverride None|AllowOverride All|g' /etc/apache2/apache2.conf \
+ && echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
-# Set working directory Laravel
+# PHP configuration (uploads limits)
+RUN printf "upload_max_filesize=100M\npost_max_size=120M\n" \
+  > /usr/local/etc/php/conf.d/uploads.ini
+
+WORKDIR /var/www/html
+EXPOSE 80
+
+# Frontend assets build stage (Vite)
+FROM node:22-bookworm AS assets
+WORKDIR /app
+COPY . .
+RUN cp .env.production.example .env.production \
+ && npm install \
+ && npm run build
+
+# Composer dependencies build stage
+FROM composer:2 AS composer_build
+WORKDIR /app
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist --no-scripts
+
+# Final application image
+FROM base AS app
+
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
 WORKDIR /var/www/html
 
-# Salin semua file Laravel ke dalam container
+# Copy application code
 COPY . .
 
-# Pastikan bootstrap/cache & storage writable
-RUN mkdir -p /var/www/html/bootstrap/cache \
-    && mkdir -p /var/www/html/storage \
-    && chmod -R 777 /var/www/html/bootstrap/cache /var/www/html/storage
+# Copy built frontend assets from Node build stage
+COPY --from=assets /app/public/build ./public/build
 
-# Pastikan .env tersedia saat build (supaya artisan tidak error)
-RUN cp .env.example .env || true
+# Copy vendor from Composer build stage
+COPY --from=composer_build /app/vendor ./vendor
 
-# Install Composer
-RUN curl -sS https://getcomposer.org/installer | php && \
-    mv composer.phar /usr/local/bin/composer
+# Siapkan .env dan APP_KEY saat build image
+RUN if [ -f .env.production.example ]; then cp .env.production.example .env; elif [ -f .env.example ]; then cp .env.example .env; fi \
+ && php artisan key:generate --force
 
-# Jalankan Composer install + semua script artisan otomatis
-RUN composer install --no-dev --optimize-autoloader --no-scripts
+# Laravel storage/cache permissions
+RUN chown -R www-data:www-data storage bootstrap/cache \
+ && find storage bootstrap/cache -type d -exec chmod 775 {} \; \
+ && find storage bootstrap/cache -type f -exec chmod 664 {} \;
 
-# Jalankan artisan command tambahan saat build
-RUN php artisan key:generate \
-    && php artisan config:clear \
-    && php artisan route:clear \
-    && php artisan view:clear \
-    && php artisan cache:clear \
-    && php artisan migrate --force || true
-
-
-# Install Node.js
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y nodejs \
-    && npm install \
-    && npm run build
-
-# Expose port 80
-EXPOSE 80
+# Jalankan inisialisasi minimal saat container start, lalu start Apache
+CMD ["sh", "-c", "php artisan migrate --force --no-interaction || true; php artisan config:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache && apache2-foreground"]
