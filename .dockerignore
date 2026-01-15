@@ -7,8 +7,6 @@ storage/framework/views
 storage/debugbar
 .git
 .gitignore
-.env
-.env.*
 !.env.example
 !.env.production.example
 docker-compose.override.yml
