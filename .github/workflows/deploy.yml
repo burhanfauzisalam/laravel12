@@ -85,7 +85,8 @@ jobs:
           # Generate .env di RUN_DIR berdasarkan nilai dari GitHub (overwrite setiap deploy)
           # APP_KEY sengaja tidak diset di sini supaya memakai hasil
           # php artisan key:generate yang dijalankan saat build image (Dockerfile).
-          : > "$RUN_DIR/.env"
+          mkdir -p $RUN_DIR
+          : > $RUN_DIR/.env
           {
             echo "APP_NAME=$APP_NAME"
             echo "APP_ENV=$APP_ENV"
@@ -106,11 +107,11 @@ jobs:
             echo "SESSION_DRIVER=database"
             echo "QUEUE_CONNECTION=database"
             echo "CACHE_STORE=database"
-          } >> "$RUN_DIR/.env"
+          } >> $RUN_DIR/.env
 
           # Pastikan docker-compose.yml di RUN_DIR selalu berasal dari REMOTE_DIR (kode repo)
-          cp "$REMOTE_DIR/docker-compose.yml" "$RUN_DIR/docker-compose.yml"
-          cd "$RUN_DIR"
+          cp $REMOTE_DIR/docker-compose.yml $RUN_DIR/docker-compose.yml
+          cd $RUN_DIR
           ls
 
           # Jalankan docker compose dengan APP_NAME yang di-pass ke environment root via sudo
