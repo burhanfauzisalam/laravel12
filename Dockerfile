@@ -52,7 +52,7 @@ COPY --from=assets /app/public/build ./public/build
 COPY --from=composer_build /app/vendor ./vendor
 
 # Siapkan .env dasar saat build image (APP_KEY akan digenerate di entrypoint)
-# RUN if [ -f .env.production.example ]; then cp .env.production.example .env; elif [ -f .env.example ]; then cp .env.example .env; fi
+RUN if [ -f .env.production.example ]; then cp .env.production.example .env; elif [ -f .env.example ]; then cp .env.example .env; fi
 
 # Laravel storage/cache directories & permissions
 RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs \

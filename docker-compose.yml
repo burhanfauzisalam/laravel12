@@ -15,7 +15,7 @@ services:
       - .env
 
     environment:
-      APP_DEBUG: "false"
+      APP_DEBUG: "true"
 
     networks:
       - web
