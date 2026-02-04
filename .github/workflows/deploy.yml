@@ -66,7 +66,7 @@ jobs:
 
           ssh -vvv $PORT_ARG "$SSH_USER@$SSH_HOST" << EOF
           set -e
-          # Set environment dasar di shell remote (untuk docker compose dan generator .env)
+          # Hitung ulang path di dalam server
           APP_NAME="$APP_NAME"
           APP_ENV="$APP_ENV"
           APP_URL_BASE="$APP_URL_BASE"
@@ -78,44 +78,48 @@ jobs:
           DB_DATABASE="$DB_DATABASE"
           DB_USERNAME="$DB_USERNAME"
           DB_PASSWORD="$DB_PASSWORD"
+
+          REMOTE_DIR="\$HOME/apps/deploy/\$APP_NAME"
+          RUN_DIR="\$HOME/apps/\$APP_NAME"
+
           export APP_NAME
           export APP_ENV APP_URL_BASE APP_URL
           export DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD
 
           # Generate .env di RUN_DIR berdasarkan nilai dari GitHub (overwrite setiap deploy)
           # APP_KEY sengaja tidak diset di sini supaya memakai hasil
-          # php artisan key:generate yang dijalankan saat build image (Dockerfile).
-          mkdir -p $RUN_DIR
-          : > $RUN_DIR/.env
+          # php artisan key:generate yang dijalankan saat build image (Dockerfile/entrypoint).
+          mkdir -p "\$RUN_DIR"
+          : > "\$RUN_DIR/.env"
           {
-            echo "APP_NAME=$APP_NAME"
-            echo "APP_ENV=$APP_ENV"
-            echo "APP_URL=$APP_URL"
-            echo "APP_URL_BASE=$APP_URL_BASE"
-            echo "ASSET_URL=$APP_URL"
+            echo "APP_NAME=\$APP_NAME"
+            echo "APP_ENV=\$APP_ENV"
+            echo "APP_URL=\$APP_URL"
+            echo "APP_URL_BASE=\$APP_URL_BASE"
+            echo "ASSET_URL=\$APP_URL"
 
             echo "LOG_CHANNEL=stack"
             echo "LOG_LEVEL=info"
 
-            echo "DB_CONNECTION=$DB_CONNECTION"
-            echo "DB_HOST=$DB_HOST"
-            echo "DB_PORT=$DB_PORT"
-            echo "DB_DATABASE=$DB_DATABASE"
-            echo "DB_USERNAME=$DB_USERNAME"
-            echo "DB_PASSWORD=$DB_PASSWORD"
+            echo "DB_CONNECTION=\$DB_CONNECTION"
+            echo "DB_HOST=\$DB_HOST"
+            echo "DB_PORT=\$DB_PORT"
+            echo "DB_DATABASE=\$DB_DATABASE"
+            echo "DB_USERNAME=\$DB_USERNAME"
+            echo "DB_PASSWORD=\$DB_PASSWORD"
 
             echo "SESSION_DRIVER=database"
             echo "QUEUE_CONNECTION=database"
             echo "CACHE_STORE=database"
-          } >> $RUN_DIR/.env
+          } >> "\$RUN_DIR/.env"
 
           # Pastikan docker-compose.yml di RUN_DIR selalu berasal dari REMOTE_DIR (kode repo)
-          cp $REMOTE_DIR/docker-compose.yml $RUN_DIR/docker-compose.yml
-          cd $RUN_DIR
+          cp "\$REMOTE_DIR/docker-compose.yml" "\$RUN_DIR/docker-compose.yml"
+          cd "\$RUN_DIR"
           ls
 
           # Jalankan docker compose dengan APP_NAME yang di-pass ke environment root via sudo
-          sudo env "APP_NAME=$APP_NAME" docker compose build --no-cache
-          sudo env "APP_NAME=$APP_NAME" docker compose up -d
+          sudo env "APP_NAME=\$APP_NAME" docker compose build --no-cache
+          sudo env "APP_NAME=\$APP_NAME" docker compose up -d
           sudo docker image prune -f
           EOF
