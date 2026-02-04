@@ -109,8 +109,8 @@ jobs:
           # Pastikan RUN_DIR dan folder upload (storage/app/public) sudah ada
           mkdir -p "\$RUN_DIR"
           mkdir -p "\$RUN_DIR/storage/app/public"
-          sudo chown -R www-data:www-data "$RUN_DIR/storage"
-          sudo chmod -R 775 "$RUN_DIR/storage"
+          sudo chown -R www-data:www-data "\$RUN_DIR/storage"
+          sudo chmod -R 775 "\$RUN_DIR/storage"
 
           # Generate .env di RUN_DIR berdasarkan nilai dari GitHub + APP_KEY final
           : > "\$RUN_DIR/.env"
