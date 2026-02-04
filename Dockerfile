@@ -26,8 +26,7 @@ EXPOSE 80
 FROM node:22-bookworm AS assets
 WORKDIR /app
 COPY . .
-RUN cp .env.production.example .env.production \
- && npm install \
+RUN npm install \
  && npm run build
 
 # Composer dependencies build stage
