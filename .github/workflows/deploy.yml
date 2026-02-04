@@ -85,32 +85,32 @@ jobs:
           # Generate .env di RUN_DIR berdasarkan nilai dari GitHub (overwrite setiap deploy)
           # APP_KEY sengaja tidak diset di sini supaya memakai hasil
           # php artisan key:generate yang dijalankan saat build image (Dockerfile).
-          cat > $RUN_DIR/.env << ENVDOC
-          APP_NAME=$APP_NAME
-          APP_ENV=$APP_ENV
-          APP_DEBUG=false
-          APP_URL=$APP_URL
-          APP_URL_BASE=$APP_URL_BASE
-          ASSET_URL=$APP_URL
+          : > "$RUN_DIR/.env"
+          {
+            echo "APP_NAME=$APP_NAME"
+            echo "APP_ENV=$APP_ENV"
+            echo "APP_URL=$APP_URL"
+            echo "APP_URL_BASE=$APP_URL_BASE"
+            echo "ASSET_URL=$APP_URL"
 
-          LOG_CHANNEL=stack
-          LOG_LEVEL=info
+            echo "LOG_CHANNEL=stack"
+            echo "LOG_LEVEL=info"
 
-          DB_CONNECTION=$DB_CONNECTION
-          DB_HOST=$DB_HOST
-          DB_PORT=$DB_PORT
-          DB_DATABASE=$DB_DATABASE
-          DB_USERNAME=$DB_USERNAME
-          DB_PASSWORD=$DB_PASSWORD
+            echo "DB_CONNECTION=$DB_CONNECTION"
+            echo "DB_HOST=$DB_HOST"
+            echo "DB_PORT=$DB_PORT"
+            echo "DB_DATABASE=$DB_DATABASE"
+            echo "DB_USERNAME=$DB_USERNAME"
+            echo "DB_PASSWORD=$DB_PASSWORD"
 
-          SESSION_DRIVER=database
-          QUEUE_CONNECTION=database
-          CACHE_STORE=database
-          ENVDOC
+            echo "SESSION_DRIVER=database"
+            echo "QUEUE_CONNECTION=database"
+            echo "CACHE_STORE=database"
+          } >> "$RUN_DIR/.env"
 
           # Pastikan docker-compose.yml di RUN_DIR selalu berasal dari REMOTE_DIR (kode repo)
-          cp $REMOTE_DIR/docker-compose.yml $RUN_DIR/docker-compose.yml
-          cd $RUN_DIR
+          cp "$REMOTE_DIR/docker-compose.yml" "$RUN_DIR/docker-compose.yml"
+          cd "$RUN_DIR"
           ls
 
           # Jalankan docker compose dengan APP_NAME yang di-pass ke environment root via sudo
