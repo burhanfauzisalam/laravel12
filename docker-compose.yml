@@ -5,7 +5,7 @@ services:
       # tetapi docker-compose dijalankan dari RUN_DIR (~/apps/$APP_NAME).
       # Karena itu context build diarahkan ke folder deploy,
       # dan APP_NAME di-resolve dari environment.
-      context: ~/apps/deploy/${APP_NAME}
+      context: /home/ubuntu/apps/deploy/${APP_NAME}
       dockerfile: Dockerfile
     image: ${APP_NAME}
     container_name: ${APP_NAME}
