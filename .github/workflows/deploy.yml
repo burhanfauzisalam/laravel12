@@ -106,8 +106,13 @@ jobs:
             FINAL_APP_KEY="base64:\$(head -c 32 /dev/urandom | base64)"
           fi
 
-          # Generate .env di RUN_DIR berdasarkan nilai dari GitHub + APP_KEY final
+          # Pastikan RUN_DIR dan folder upload (storage/app/public) sudah ada
           mkdir -p "\$RUN_DIR"
+          mkdir -p "\$RUN_DIR/storage/app/public"
+          sudo chown -R www-data:www-data "$RUN_DIR/storage"
+          sudo chmod -R 775 "$RUN_DIR/storage"
+
+          # Generate .env di RUN_DIR berdasarkan nilai dari GitHub + APP_KEY final
           : > "\$RUN_DIR/.env"
           {
             echo "APP_NAME=\$APP_NAME"

@@ -17,6 +17,11 @@ services:
     networks:
       - web
 
+    # Persist uploaded files in a folder under RUN_DIR (where this
+    # docker-compose.yml lives), so deploy/rebuild tidak menghapus data.
+    volumes:
+      - ./storage/app/public:/var/www/html/storage/app/public
+
     labels:
       - "traefik.enable=true"
 
