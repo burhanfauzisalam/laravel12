@@ -23,6 +23,7 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           # App / environment config (set these in GitHub Variables/Secrets)
           APP_ENV: ${{ vars.APP_ENV }}
+          APP_DEBUG: ${{ vars.APP_DEBUG }}
           APP_URL_BASE: ${{ vars.APP_URL_BASE }}
           DB_CONNECTION: ${{ vars.DB_CONNECTION }}
           DB_HOST: ${{ vars.DB_HOST }}
@@ -30,6 +31,7 @@ jobs:
           DB_DATABASE: ${{ vars.DB_DATABASE }}
           DB_USERNAME: ${{ vars.DB_USERNAME }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          APP_KEY: ${{ secrets.APP_KEY }}
         run: |
           set -x
           mkdir -p ~/.ssh
@@ -48,11 +50,8 @@ jobs:
 
           REMOTE_DIR="~/apps/deploy/$APP_NAME"
           RUN_DIR="~/apps/$APP_NAME"
-          # APP_URL_BASE diharapkan HANYA berisi host (tanpa https:// dan tanpa path)
-          # mis: server.burhanfs.my.id
-          APP_URL="https://${APP_URL_BASE:-server.burhanfs.my.id}/$APP_NAME"
 
-          # Pastikan folder deploy dan run di server sudah ada
+          # Pastikan folder deploy dan run di server sudah ada (tanpa menyentuh .env di RUN_DIR)
           ssh $PORT_ARG "$SSH_USER@$SSH_HOST" "mkdir -p $REMOTE_DIR $RUN_DIR"
 
           # Sinkronkan kode dari runner ke server (tanpa perlu git pull di server)
@@ -61,42 +60,48 @@ jobs:
             RSYNC_SSH_OPTS="$RSYNC_SSH_OPTS -p $SSH_PORT"
           fi
 
-          # Sinkronkan kode, tapi jangan sentuh file .env di server
+          # Sinkronkan kode ke REMOTE_DIR (kode deploy), tapi jangan sentuh file .env di server
           rsync -az --delete --exclude='.env' -e "ssh $RSYNC_SSH_OPTS" ./ "$SSH_USER@$SSH_HOST:$REMOTE_DIR"
+
+          # Hitung APP_URL berbasis base host dari GitHub (tanpa https:// dan path)
+          APP_ENV="${APP_ENV:-production}"
+          APP_DEBUG="${APP_DEBUG:-true}"
+          APP_URL_BASE="${APP_URL_BASE:-apps.burhanfs.my.id}"
+          APP_URL="https://$APP_URL_BASE/$APP_NAME"
 
           ssh -vvv $PORT_ARG "$SSH_USER@$SSH_HOST" << EOF
           set -e
-          # Hitung ulang path di dalam server
+
           APP_NAME="$APP_NAME"
           APP_ENV="$APP_ENV"
+          APP_DEBUG="$APP_DEBUG"
           APP_URL_BASE="$APP_URL_BASE"
           APP_URL="$APP_URL"
-          ASSET_URL="$APP_URL"
           DB_CONNECTION="$DB_CONNECTION"
           DB_HOST="$DB_HOST"
           DB_PORT="$DB_PORT"
           DB_DATABASE="$DB_DATABASE"
           DB_USERNAME="$DB_USERNAME"
           DB_PASSWORD="$DB_PASSWORD"
+          APP_KEY="$APP_KEY"
 
           REMOTE_DIR="\$HOME/apps/deploy/\$APP_NAME"
           RUN_DIR="\$HOME/apps/\$APP_NAME"
 
-          export APP_NAME
-          export APP_ENV APP_URL_BASE APP_URL
-          export DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD
-
           # Generate .env di RUN_DIR berdasarkan nilai dari GitHub (overwrite setiap deploy)
-          # APP_KEY sengaja tidak diset di sini supaya memakai hasil
-          # php artisan key:generate yang dijalankan saat build image (Dockerfile/entrypoint).
           mkdir -p "\$RUN_DIR"
           : > "\$RUN_DIR/.env"
           {
             echo "APP_NAME=\$APP_NAME"
             echo "APP_ENV=\$APP_ENV"
+            echo "APP_DEBUG=\$APP_DEBUG"
             echo "APP_URL=\$APP_URL"
-            echo "APP_URL_BASE=\$APP_URL_BASE"
             echo "ASSET_URL=\$APP_URL"
+            echo "APP_URL_BASE=\$APP_URL_BASE"
+
+            if [ -n "\$APP_KEY" ]; then
+              echo "APP_KEY=\$APP_KEY"
+            fi
 
             echo "LOG_CHANNEL=stack"
             echo "LOG_LEVEL=info"
@@ -118,7 +123,7 @@ jobs:
           cd "\$RUN_DIR"
           ls
 
-          # Jalankan docker compose dengan APP_NAME yang di-pass ke environment root via sudo
+          # Jalankan docker compose; env diambil dari .env host (env_file: .env)
           sudo env "APP_NAME=\$APP_NAME" docker compose build --no-cache
           sudo env "APP_NAME=\$APP_NAME" docker compose up -d
           sudo docker image prune -f
