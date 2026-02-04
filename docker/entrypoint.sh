@@ -1,7 +1,13 @@
 #!/bin/sh
 set -e
 
-# Run standard Laravel production commands
+# Pastikan APP_KEY sudah ter-set (hanya generate kalau belum ada)
+if [ -z "$APP_KEY" ]; then
+  if [ ! -f .env ] || ! grep -q '^APP_KEY=' .env || grep -q '^APP_KEY=$' .env; then
+    echo "Generating APP_KEY..."
+    php artisan key:generate --force
+  fi
+fi
 
 # Run optimization commands
 echo "Clearing caches..."
