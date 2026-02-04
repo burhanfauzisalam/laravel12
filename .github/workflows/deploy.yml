@@ -84,27 +84,27 @@ jobs:
 
           # Generate .env di RUN_DIR berdasarkan nilai dari GitHub (overwrite setiap deploy)
           cat > $RUN_DIR/.env << ENVDOC
-APP_NAME=$APP_NAME
-APP_ENV=$APP_ENV
-APP_KEY=
-APP_DEBUG=false
-APP_URL=$APP_URL
-APP_URL_BASE=$APP_URL_BASE
+          APP_NAME=$APP_NAME
+          APP_ENV=$APP_ENV
+          APP_KEY=
+          APP_DEBUG=false
+          APP_URL=$APP_URL
+          APP_URL_BASE=$APP_URL_BASE
 
-LOG_CHANNEL=stack
-LOG_LEVEL=info
+          LOG_CHANNEL=stack
+          LOG_LEVEL=info
 
-DB_CONNECTION=$DB_CONNECTION
-DB_HOST=$DB_HOST
-DB_PORT=$DB_PORT
-DB_DATABASE=$DB_DATABASE
-DB_USERNAME=$DB_USERNAME
-DB_PASSWORD=$DB_PASSWORD
+          DB_CONNECTION=$DB_CONNECTION
+          DB_HOST=$DB_HOST
+          DB_PORT=$DB_PORT
+          DB_DATABASE=$DB_DATABASE
+          DB_USERNAME=$DB_USERNAME
+          DB_PASSWORD=$DB_PASSWORD
 
-SESSION_DRIVER=database
-QUEUE_CONNECTION=database
-CACHE_STORE=database
-ENVDOC
+          SESSION_DRIVER=database
+          QUEUE_CONNECTION=database
+          CACHE_STORE=database
+          ENVDOC
 
           # Pastikan docker-compose.yml di RUN_DIR selalu berasal dari REMOTE_DIR (kode repo)
           cp $REMOTE_DIR/docker-compose.yml $RUN_DIR/docker-compose.yml
