@@ -83,12 +83,30 @@ jobs:
           DB_DATABASE="$DB_DATABASE"
           DB_USERNAME="$DB_USERNAME"
           DB_PASSWORD="$DB_PASSWORD"
-          APP_KEY="$APP_KEY"
+          APP_KEY_FROM_SECRET="$APP_KEY"
 
           REMOTE_DIR="\$HOME/apps/deploy/\$APP_NAME"
           RUN_DIR="\$HOME/apps/\$APP_NAME"
 
-          # Generate .env di RUN_DIR berdasarkan nilai dari GitHub (overwrite setiap deploy)
+          # Baca APP_KEY lama dari .env (jika ada)
+          EXISTING_APP_KEY=""
+          if [ -f "\$RUN_DIR/.env" ]; then
+            EXISTING_APP_KEY=\$(grep '^APP_KEY=' "\$RUN_DIR/.env" | cut -d= -f2- || true)
+          fi
+
+          # Tentukan APP_KEY:
+          # 1) Jika sudah ada di .env host -> pakai itu (deploy berikutnya tidak regenerate)
+          # 2) Kalau belum ada tapi ada di GitHub secret APP_KEY -> pakai secret
+          # 3) Kalau dua‑duanya kosong -> generate baru sekali
+          if [ -n "\$EXISTING_APP_KEY" ]; then
+            FINAL_APP_KEY="\$EXISTING_APP_KEY"
+          elif [ -n "\$APP_KEY_FROM_SECRET" ]; then
+            FINAL_APP_KEY="\$APP_KEY_FROM_SECRET"
+          else
+            FINAL_APP_KEY="base64:\$(head -c 32 /dev/urandom | base64)"
+          fi
+
+          # Generate .env di RUN_DIR berdasarkan nilai dari GitHub + APP_KEY final
           mkdir -p "\$RUN_DIR"
           : > "\$RUN_DIR/.env"
           {
@@ -98,10 +116,7 @@ jobs:
             echo "APP_URL=\$APP_URL"
             echo "ASSET_URL=\$APP_URL"
             echo "APP_URL_BASE=\$APP_URL_BASE"
-
-            if [ -n "\$APP_KEY" ]; then
-              echo "APP_KEY=\$APP_KEY"
-            fi
+            echo "APP_KEY=\$FINAL_APP_KEY"
 
             echo "LOG_CHANNEL=stack"
             echo "LOG_LEVEL=info"
