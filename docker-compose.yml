@@ -1,0 +1,46 @@
+services:
+  app:
+    build:
+      # Kode aplikasi di-copy ke REMOTE_DIR (~/apps/deploy/$APP_NAME)
+      # tetapi docker-compose dijalankan dari RUN_DIR (~/apps/$APP_NAME).
+      # Karena itu context build diarahkan ke folder deploy,
+      # dan APP_NAME di-resolve dari environment.
+      context: ../deploy/${APP_NAME}
+      dockerfile: Dockerfile
+    image: ${APP_NAME}
+    container_name: ${APP_NAME}
+    restart: always
+
+    env_file:
+      - .env
+
+    environment:
+      APP_DEBUG: "false"
+
+    networks:
+      - web
+
+    labels:
+      - "traefik.enable=true"
+
+      # ROUTER (WAJIB PathPrefix)
+      - "traefik.http.routers.${APP_NAME}.rule=Host(`server.burhanfs.my.id`) && PathPrefix(`/${APP_NAME}`)"
+      - "traefik.http.routers.${APP_NAME}.entrypoints=websecure"
+      - "traefik.http.routers.${APP_NAME}.tls.certresolver=myresolver"
+      - "traefik.http.routers.${APP_NAME}.priority=100"
+
+      # MIDDLEWARE
+      - "traefik.http.middlewares.${APP_NAME}-strip.stripprefix.prefixes=/${APP_NAME}"
+
+      - "traefik.http.middlewares.${APP_NAME}-proxy.headers.customrequestheaders.X-Forwarded-Prefix=/${APP_NAME}"
+      - "traefik.http.middlewares.${APP_NAME}-proxy.headers.customrequestheaders.X-Forwarded-Proto=https"
+      - "traefik.http.middlewares.${APP_NAME}-proxy.headers.customrequestheaders.X-Forwarded-Host=server.burhanfs.my.id"
+
+      - "traefik.http.routers.${APP_NAME}.middlewares=${APP_NAME}-strip,${APP_NAME}-proxy"
+
+      # SERVICE
+      - "traefik.http.services.${APP_NAME}.loadbalancer.server.port=80"
+
+networks:
+  web:
+    external: true
