@@ -48,7 +48,9 @@ jobs:
 
           REMOTE_DIR="~/apps/deploy/$APP_NAME"
           RUN_DIR="~/apps/$APP_NAME"
-          APP_URL="${APP_URL_BASE:-https://server.burhanfs.my.id}/$APP_NAME"
+          # APP_URL_BASE diharapkan HANYA berisi host (tanpa https:// dan tanpa path)
+          # mis: server.burhanfs.my.id
+          APP_URL="https://${APP_URL_BASE:-server.burhanfs.my.id}/$APP_NAME"
 
           # Pastikan folder deploy dan run di server sudah ada
           ssh $PORT_ARG "$SSH_USER@$SSH_HOST" "mkdir -p $REMOTE_DIR $RUN_DIR"
@@ -63,52 +65,54 @@ jobs:
           rsync -az --delete --exclude='.env' -e "ssh $RSYNC_SSH_OPTS" ./ "$SSH_USER@$SSH_HOST:$REMOTE_DIR"
 
           ssh -vvv $PORT_ARG "$SSH_USER@$SSH_HOST" << EOF
-            set -e
-            # Set environment dasar di shell remote (untuk docker compose dan generator .env)
-            APP_NAME="$APP_NAME"
-            APP_ENV="$APP_ENV"
-            APP_URL="$APP_URL"
-            ASSET_URL="$APP_URL"
-            DB_CONNECTION="$DB_CONNECTION"
-            DB_HOST="$DB_HOST"
-            DB_PORT="$DB_PORT"
-            DB_DATABASE="$DB_DATABASE"
-            DB_USERNAME="$DB_USERNAME"
-            DB_PASSWORD="$DB_PASSWORD"
-            export APP_NAME
-            export APP_ENV APP_URL
-            export DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD
+          set -e
+          # Set environment dasar di shell remote (untuk docker compose dan generator .env)
+          APP_NAME="$APP_NAME"
+          APP_ENV="$APP_ENV"
+          APP_URL_BASE="$APP_URL_BASE"
+          APP_URL="$APP_URL"
+          ASSET_URL="$APP_URL"
+          DB_CONNECTION="$DB_CONNECTION"
+          DB_HOST="$DB_HOST"
+          DB_PORT="$DB_PORT"
+          DB_DATABASE="$DB_DATABASE"
+          DB_USERNAME="$DB_USERNAME"
+          DB_PASSWORD="$DB_PASSWORD"
+          export APP_NAME
+          export APP_ENV APP_URL_BASE APP_URL
+          export DB_CONNECTION DB_HOST DB_PORT DB_DATABASE DB_USERNAME DB_PASSWORD
 
-            # Generate .env di RUN_DIR berdasarkan nilai dari GitHub (overwrite setiap deploy)
-            cat > "$RUN_DIR/.env" << ENVDOC
-            APP_NAME=$APP_NAME
-            APP_ENV=$APP_ENV
-            APP_KEY=
-            APP_DEBUG=false
-            APP_URL=$APP_URL
+          # Generate .env di RUN_DIR berdasarkan nilai dari GitHub (overwrite setiap deploy)
+          cat > $RUN_DIR/.env << ENVDOC
+APP_NAME=$APP_NAME
+APP_ENV=$APP_ENV
+APP_KEY=
+APP_DEBUG=false
+APP_URL=$APP_URL
+APP_URL_BASE=$APP_URL_BASE
 
-            LOG_CHANNEL=stack
-            LOG_LEVEL=info
+LOG_CHANNEL=stack
+LOG_LEVEL=info
 
-            DB_CONNECTION=$DB_CONNECTION
-            DB_HOST=$DB_HOST
-            DB_PORT=$DB_PORT
-            DB_DATABASE=$DB_DATABASE
-            DB_USERNAME=$DB_USERNAME
-            DB_PASSWORD=$DB_PASSWORD
+DB_CONNECTION=$DB_CONNECTION
+DB_HOST=$DB_HOST
+DB_PORT=$DB_PORT
+DB_DATABASE=$DB_DATABASE
+DB_USERNAME=$DB_USERNAME
+DB_PASSWORD=$DB_PASSWORD
 
-            SESSION_DRIVER=database
-            QUEUE_CONNECTION=database
-            CACHE_STORE=database
-            ENVDOC
+SESSION_DRIVER=database
+QUEUE_CONNECTION=database
+CACHE_STORE=database
+ENVDOC
 
-            # Pastikan docker-compose.yml di RUN_DIR selalu berasal dari REMOTE_DIR (kode repo)
-            cp $REMOTE_DIR/docker-compose.yml $RUN_DIR/docker-compose.yml
-            cd $RUN_DIR
-            ls
+          # Pastikan docker-compose.yml di RUN_DIR selalu berasal dari REMOTE_DIR (kode repo)
+          cp $REMOTE_DIR/docker-compose.yml $RUN_DIR/docker-compose.yml
+          cd $RUN_DIR
+          ls
 
-            # Jalankan docker compose dengan APP_NAME yang di-pass ke environment root via sudo
-            sudo env "APP_NAME=$APP_NAME" docker compose build --no-cache
-            sudo env "APP_NAME=$APP_NAME" docker compose up -d
-            sudo docker image prune -f
+          # Jalankan docker compose dengan APP_NAME yang di-pass ke environment root via sudo
+          sudo env "APP_NAME=$APP_NAME" docker compose build --no-cache
+          sudo env "APP_NAME=$APP_NAME" docker compose up -d
+          sudo docker image prune -f
           EOF
