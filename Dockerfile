@@ -11,18 +11,13 @@ RUN apt-get update && apt-get install -y \
  && docker-php-ext-install pdo pdo_mysql mysqli zip gd mbstring intl \
  && rm -rf /var/lib/apt/lists/*
 
-# Apache configuration
-ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
-RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' \
-  /etc/apache2/sites-available/000-default.conf \
-  /etc/apache2/apache2.conf \
- && a2enmod rewrite \
- && sed -i 's|AllowOverride None|AllowOverride All|g' /etc/apache2/apache2.conf \
- && echo "ServerName localhost" >> /etc/apache2/apache2.conf
+# Apache & PHP configuration from ./docker
+COPY docker/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
+COPY docker/php/php.ini /usr/local/etc/php/conf.d/php.ini
+COPY docker/php/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 
-# PHP configuration (uploads limits)
-RUN printf "upload_max_filesize=100M\npost_max_size=120M\n" \
-  > /usr/local/etc/php/conf.d/uploads.ini
+RUN a2enmod rewrite \
+ && echo "ServerName localhost" >> /etc/apache2/apache2.conf
 
 WORKDIR /var/www/html
 EXPOSE 80
@@ -67,6 +62,9 @@ RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framewor
  && find storage bootstrap/cache -type d -exec chmod 775 {} \; \
  && find storage bootstrap/cache -type f -exec chmod 664 {} \;
 
-# Jalankan inisialisasi minimal saat container start, lalu start Apache
-# Hanya cache config & routes; view dibiarkan seperti di lokal
-CMD ["sh", "-c", "php artisan migrate --force --no-interaction || true; php artisan config:clear && php artisan config:cache && php artisan route:cache || true; apache2-foreground"]
+# Entrypoint: jalankan skrip Laravel + start Apache
+COPY docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["apache2-foreground"]
